@@ -4,7 +4,11 @@ let hands;
 let popSound;
 let hayleys = [];   // every Hayley currently on screen
 
-const CHUTE_OFFSET = 105;   // how far above Hayley the chute sits — tune to taste
+// How far above Hayley the chute sits, as a fraction of Hayley's height — kept
+// proportional so the gap scales with sprite size instead of staying fixed
+// (a fixed pixel gap looked "disconnected" once mobile sprites got smaller).
+const CHUTE_OFFSET_RATIO = 0.477;
+let CHUTE_OFFSET; // computed in setup() once Hayley's size is known
 const GRAVITY = 0.15;      // how fast falling Hayleys accelerate (desktop)
 const GRAVITY_MOBILE = 0.26; // faster fall on mobile — smaller sprites need more challenge
 const CATCH_RADIUS = 70;    // how close the hands need to be to catch her
@@ -34,12 +38,16 @@ function setup() {
   isMobile = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
 
   createCanvas(windowWidth, windowHeight);
+  // Match the device's actual pixel density so sprites render crisp, not blurry,
+  // on high-resolution (retina) phone screens.
+  pixelDensity(displayDensity());
   imageMode(CENTER);
-  // Sprites were sized for a desktop window; phones are much narrower, which made
-  // them look oversized on screen. Shrink them for mobile.
-  chute.resize(0, isMobile ? 38 : 100);
-  hayley.resize(0, isMobile ? 85 : 220);
-  hands.resize(0, isMobile ? 75 : 150);
+  // Sprites were sized for a desktop window; phones are much narrower. Shrink them
+  // for mobile, but not so far that they lose detail or look disconnected.
+  chute.resize(0, isMobile ? 65 : 100);
+  hayley.resize(0, isMobile ? 150 : 220);
+  hands.resize(0, isMobile ? 95 : 150);
+  CHUTE_OFFSET = hayley.height * CHUTE_OFFSET_RATIO;
   noCursor(); // the cupped hands replace the system cursor
 
   // Stop the page from scrolling/zooming while the player drags a finger
