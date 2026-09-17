@@ -8,8 +8,8 @@ const CHUTE_OFFSET = 105;   // how far above Hayley the chute sits — tune to t
 const GRAVITY = 0.15;      // how fast falling Hayleys accelerate
 const CATCH_RADIUS = 100;    // how close the hands need to be to catch her
 const POP_DELAY_MIN = 450; // ms before a chute can pop, minimum
-const POP_DELAY_MAX = 3000; // ms before a chute can pop, maximum
-const SPAWN_INTERVAL = 650; // ms between new Hayleys appearing
+const POP_DELAY_MAX = 2500; // ms before a chute can pop, maximum
+const SPAWN_INTERVAL = 500; // ms between new Hayleys appearing
 const HEADER_CLEARANCE = 90; // vertical space reserved for the headline text at the top
 const MAX_MISSED = 10; // game stops once this many Hayleys have fallen
 
