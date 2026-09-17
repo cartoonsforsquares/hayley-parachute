@@ -37,9 +37,9 @@ function setup() {
   imageMode(CENTER);
   // Sprites were sized for a desktop window; phones are much narrower, which made
   // them look oversized on screen. Shrink them for mobile.
-  chute.resize(0, isMobile ? 60 : 100);
-  hayley.resize(0, isMobile ? 130 : 220);
-  hands.resize(0, isMobile ? 100 : 150);
+  chute.resize(0, isMobile ? 38 : 100);
+  hayley.resize(0, isMobile ? 85 : 220);
+  hands.resize(0, isMobile ? 75 : 150);
   noCursor(); // the cupped hands replace the system cursor
 
   // Stop the page from scrolling/zooming while the player drags a finger
