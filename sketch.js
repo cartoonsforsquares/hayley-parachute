@@ -5,11 +5,12 @@ let popSound;
 let hayleys = [];   // every Hayley currently on screen
 
 const CHUTE_OFFSET = 105;   // how far above Hayley the chute sits — tune to taste
-const GRAVITY = 0.15;      // how fast falling Hayleys accelerate
-const CATCH_RADIUS = 100;    // how close the hands need to be to catch her
+const GRAVITY = 0.15;      // how fast falling Hayleys accelerate (desktop)
+const GRAVITY_MOBILE = 0.26; // faster fall on mobile — smaller sprites need more challenge
+const CATCH_RADIUS = 70;    // how close the hands need to be to catch her
 const POP_DELAY_MIN = 450; // ms before a chute can pop, minimum
 const POP_DELAY_MAX = 3000; // ms before a chute can pop, maximum
-const SPAWN_INTERVAL = 500; // ms between new Hayleys appearing
+const SPAWN_INTERVAL = 650; // ms between new Hayleys appearing
 const HEADER_CLEARANCE = 90; // vertical space reserved for the headline text at the top
 const MAX_MISSED = 10; // game stops once this many Hayleys have fallen
 
@@ -34,9 +35,11 @@ function setup() {
 
   createCanvas(windowWidth, windowHeight);
   imageMode(CENTER);
-  chute.resize(0, 100);
-  hayley.resize(0, 220);
-  hands.resize(0, 150);
+  // Sprites were sized for a desktop window; phones are much narrower, which made
+  // them look oversized on screen. Shrink them for mobile.
+  chute.resize(0, isMobile ? 60 : 100);
+  hayley.resize(0, isMobile ? 130 : 220);
+  hands.resize(0, isMobile ? 100 : 150);
   noCursor(); // the cupped hands replace the system cursor
 
   // Stop the page from scrolling/zooming while the player drags a finger
@@ -49,6 +52,9 @@ function setup() {
 }
 
 function touchStarted() {
+  // p5 does not auto-simulate mousePressed once touchStarted exists, so retry
+  // needs to be triggered from here directly for taps to work on phones.
+  attemptRetry();
   // Block the default touch behaviour so the page does not scroll or refresh
   return false;
 }
@@ -78,8 +84,9 @@ function draw() {
     drawHayley(h);
 
     if (h.state === 'falling') {
-      // Fingers are less precise than a mouse cursor, so give touch a bigger catch radius
-      const catchRadius = isMobile ? CATCH_RADIUS * 1.4 : CATCH_RADIUS;
+      // Fingers are less precise than a mouse cursor, so give touch a bigger catch radius —
+      // but not as generous as before now that mobile Hayleys are smaller and faster
+      const catchRadius = isMobile ? CATCH_RADIUS * 1.15 : CATCH_RADIUS;
       if (dist(mouseX, mouseY, h.x, h.y) < catchRadius) {
         score++;
         hayleys.splice(i, 1);
@@ -122,7 +129,7 @@ function updateHayley(h) {
     popSound.play();
   }
   if (h.state === 'falling') {
-    h.vy += GRAVITY;
+    h.vy += isMobile ? GRAVITY_MOBILE : GRAVITY;
     h.y += h.vy;
   }
 }
@@ -136,13 +143,15 @@ function drawHayley(h) {
 }
 
 function drawHUD() {
-  // responsive text
-  const ts = constrain(width * 0.045, 16, 35);
+  // responsive text — bumped up on mobile since phones are viewed from closer up
+  const ts = isMobile
+    ? constrain(width * 0.075, 26, 46)
+    : constrain(width * 0.045, 16, 35);
 
   push();
   textFont(moreFont);
   fill('black'); noStroke(); textSize(ts); textAlign(CENTER, TOP);
-  text("Catch Hayley before her parachute pops!", width / 2, ts * 0.6);
+  text("Catch Hayley before\nher parachute pops!", width / 2, ts * 0.6);
   pop();
 
   push();
@@ -153,7 +162,9 @@ function drawHUD() {
 }
 // Shown once missed reaches MAX_MISSED. Click anywhere to retry.
 function drawRetryScreen() {
-  const ts = constrain(width * 0.045, 16, 35);
+  const ts = isMobile
+    ? constrain(width * 0.075, 26, 46)
+    : constrain(width * 0.045, 16, 35);
 
   push();
   textFont(moreFont);
@@ -163,6 +174,13 @@ function drawRetryScreen() {
 }
 
 function mousePressed() {
+  attemptRetry();
+}
+
+// Resets the game back to its starting state. Called from both a mouse click
+// and a touch tap, since the two are not automatically interchangeable once
+// touchStarted() is defined (see note there).
+function attemptRetry() {
   if (!gameOver) return;
 
   score = 0;
