@@ -15,8 +15,9 @@ const CATCH_RADIUS = 70;    // how close the hands need to be to catch her
 const POP_DELAY_MIN = 450; // ms before a chute can pop, minimum
 const POP_DELAY_MAX = 3000; // ms before a chute can pop, maximum
 const SPAWN_INTERVAL = 650; // ms between new Hayleys appearing
-const HEADER_CLEARANCE = 90; // vertical space reserved for the headline text at the top
 const MAX_MISSED = 10; // game stops once this many Hayleys have fallen
+const LEVEL_EVERY = 20; // game speeds up every 20 catches (see hud.js)
+const MAX_DRIFT = 2; // how far sideways a falling Hayley can drift per frame at max chaos
 
 let score = 0;
 let missed = 0;
@@ -28,7 +29,6 @@ function preload() {
   chute  = loadImage("assets/Parachute.png");
   hayley = loadImage("assets/Hayley.png");
   hands  = loadImage("assets/Hands.png");
-  moreFont  = loadFont("assets/Chubbo-BoldItalic.ttf");
   scoreFont = loadFont("assets/GeistMono-Bold.ttf");
   popSound  = loadSound("assets/bubble-pop.mp3");
 }
@@ -73,7 +73,7 @@ function touchMoved() {
 }
 
 function draw() {
-  background('pink');
+  background(CREAM);
 
   if (gameOver) {
     drawRetryScreen();
@@ -81,7 +81,10 @@ function draw() {
     return;
   }
 
-  if (millis() - lastSpawnTime > SPAWN_INTERVAL) {
+  checkLevelUp();
+
+  // New Hayleys appear more often as the game speeds up
+  if (millis() - lastSpawnTime > SPAWN_INTERVAL / chaos()) {
     spawnHayley();
     lastSpawnTime = millis();
   }
@@ -109,7 +112,9 @@ function draw() {
     }
   }
 
-  drawHUD();
+  drawHeadline("Catch Hayley before\nher parachute pops!");
+  drawScoreboard(`Caught: ${score}   Missed: ${missed}`);
+  drawLevelBanner();
 
   // cupped hands follow the cursor
   image(hands, mouseX, mouseY, hands.width, hands.height);
@@ -118,15 +123,17 @@ function draw() {
 // Creates one Hayley (chute included), floating, with a random pop time.
 function spawnHayley() {
   // Keep the chute's top edge below the headline text — no overlap.
-  const minY = HEADER_CLEARANCE + CHUTE_OFFSET + chute.height / 2;
+  const minY = hudLayout().headBottom + CHUTE_OFFSET + chute.height / 2;
   const maxY = Math.max(minY + 40, height * 0.4);
 
   hayleys.push({
     x: random(width * 0.1, width * 0.9),
     y: random(minY, maxY),
     vy: 0,
+    vx: 0, // sideways drift, only added once the game speeds up
     state: 'floating', // 'floating' -> 'falling'
-    popAt: millis() + random(POP_DELAY_MIN, POP_DELAY_MAX)
+    // Chutes pop sooner as the game speeds up
+    popAt: millis() + random(POP_DELAY_MIN, POP_DELAY_MAX) / chaos()
   });
 }
 
@@ -134,11 +141,16 @@ function spawnHayley() {
 function updateHayley(h) {
   if (h.state === 'floating' && millis() > h.popAt) {
     h.state = 'falling';
+    // Once the game speeds up, Hayleys also drift sideways as they fall, so catching gets chaotic
+    const drift = MAX_DRIFT * (chaos() - 1) / (MAX_CHAOS - 1);
+    h.vx = random(-drift, drift);
     popSound.play();
   }
   if (h.state === 'falling') {
-    h.vy += isMobile ? GRAVITY_MOBILE : GRAVITY;
+    // Gravity gets stronger as the game speeds up
+    h.vy += (isMobile ? GRAVITY_MOBILE : GRAVITY) * chaos();
     h.y += h.vy;
+    h.x = constrain(h.x + h.vx, 0, width);
   }
 }
 
@@ -150,36 +162,7 @@ function drawHayley(h) {
   image(hayley, h.x, h.y, hayley.width, hayley.height);
 }
 
-function drawHUD() {
-  // responsive text — bumped up on mobile since phones are viewed from closer up
-  const ts = isMobile
-    ? constrain(width * 0.075, 26, 46)
-    : constrain(width * 0.045, 16, 35);
-
-  push();
-  textFont(moreFont);
-  fill('black'); noStroke(); textSize(ts); textAlign(CENTER, TOP);
-  text("Catch Hayley before\nher parachute pops!", width / 2, ts * 0.6);
-  pop();
-
-  push();
-  textFont(scoreFont);
-  fill('black'); noStroke(); textSize(ts - 5); textAlign(CENTER, BOTTOM);
-  text(`CAUGHT: ${score}   MISSED: ${missed}`, width / 2, height - ts * 0.8);
-  pop();
-}
-// Shown once missed reaches MAX_MISSED. Click anywhere to retry.
-function drawRetryScreen() {
-  const ts = isMobile
-    ? constrain(width * 0.075, 26, 46)
-    : constrain(width * 0.045, 16, 35);
-
-  push();
-  textFont(moreFont);
-  fill('black'); noStroke(); textSize(ts * 2); textAlign(CENTER, CENTER);
-  text("Retry ?", width / 2, height / 2);
-  pop();
-}
+// The headline, scoreboard, retry screen, and speed-ups live in hud.js, shared by every game
 
 function mousePressed() {
   attemptRetry();
@@ -195,6 +178,7 @@ function attemptRetry() {
   missed = 0;
   hayleys = [];
   gameOver = false;
+  resetLevels();
   for (let i = 0; i < 5; i++) spawnHayley();
   lastSpawnTime = millis();
 }
