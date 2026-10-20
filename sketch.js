@@ -26,11 +26,11 @@ let gameOver = false;
 let isMobile = false; // true on touch devices (phones/tablets); detected once in setup()
 
 function preload() {
-  chute  = loadImage("assets/Parachute.png");
-  hayley = loadImage("assets/Hayley.png");
-  hands  = loadImage("assets/Hands.png");
+  chute  = loadImage("assets/Parachute.webp");
+  hayley = loadImage("assets/Hayley.webp");
+  hands  = loadImage("assets/Hands.webp");
   scoreFont = loadFont("assets/GeistMono-Bold.ttf");
-  popSound  = loadSound("assets/bubble-pop.mp3");
+  popSound  = loadSoundEffect("assets/bubble-pop.mp3"); // see hud.js
 }
 
 function setup() {
@@ -60,9 +60,9 @@ function setup() {
 }
 
 function touchStarted() {
-  // p5 does not auto-simulate mousePressed once touchStarted exists, so retry
+  // p5 does not auto-simulate mousePressed once touchStarted exists, so start/retry
   // needs to be triggered from here directly for taps to work on phones.
-  attemptRetry();
+  if (!handleStartTap(resetGame)) attemptRetry();
   // Block the default touch behaviour so the page does not scroll or refresh
   return false;
 }
@@ -74,6 +74,14 @@ function touchMoved() {
 
 function draw() {
   background(CREAM);
+
+  // Wait on the "Tap to play" screen until the first tap or click (see hud.js)
+  if (!started) {
+    drawHUD();
+    drawStartScreen();
+    image(hands, mouseX, mouseY, hands.width, hands.height);
+    return;
+  }
 
   if (gameOver) {
     drawRetryScreen();
@@ -112,8 +120,7 @@ function draw() {
     }
   }
 
-  drawHeadline("Catch Hayley before\nher parachute pops!");
-  drawScoreboard(`Caught: ${score}   Missed: ${missed}`);
+  drawHUD();
   drawLevelBanner();
 
   // cupped hands follow the cursor
@@ -144,7 +151,8 @@ function updateHayley(h) {
     // Once the game speeds up, Hayleys also drift sideways as they fall, so catching gets chaotic
     const drift = MAX_DRIFT * (chaos() - 1) / (MAX_CHAOS - 1);
     h.vx = random(-drift, drift);
-    popSound.play();
+    // A slightly different pitch each time so repeated pops do not sound robotic
+    playSoundEffect(popSound, 1, random(0.9, 1.1));
   }
   if (h.state === 'falling') {
     // Gravity gets stronger as the game speeds up
@@ -162,18 +170,28 @@ function drawHayley(h) {
   image(hayley, h.x, h.y, hayley.width, hayley.height);
 }
 
-// The headline, scoreboard, retry screen, and speed-ups live in hud.js, shared by every game
-
-function mousePressed() {
-  attemptRetry();
+function drawHUD() {
+  drawHeadline("Catch Hayley before\nher parachute pops!");
+  drawScoreboard(`Caught: ${score}   Missed: ${missed}`);
 }
 
-// Resets the game back to its starting state. Called from both a mouse click
+// The headline, scoreboard, start and retry screens, sounds, and speed-ups live in hud.js,
+// shared by every game
+
+function mousePressed() {
+  if (!handleStartTap(resetGame)) attemptRetry();
+}
+
+// Starts a new round, but only once the game is over. Called from both a mouse click
 // and a touch tap, since the two are not automatically interchangeable once
 // touchStarted() is defined (see note there).
 function attemptRetry() {
   if (!gameOver) return;
+  resetGame();
+}
 
+// Resets the game back to its starting state (used for the first tap and every retry)
+function resetGame() {
   score = 0;
   missed = 0;
   hayleys = [];
